@@ -1,0 +1,61 @@
+version: '3.8'
+
+# ============================================
+# Docker Compose para Desenvolvimento
+# ============================================
+
+services:
+  # Backend em modo development
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile.dev
+    container_name: nutribot-backend-dev
+    restart: unless-stopped
+    ports:
+      - "3333:3333"
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=development
+      - PORT=3333
+      - JWT_SECRET=dev-secret-change-me-in-production
+      - JWT_EXPIRES_IN=7d
+      - FRONTEND_URL=http://localhost:5173
+    volumes:
+      - ./backend:/app
+      - backend-data:/app/data
+      - backend-uploads:/app/uploads
+      - /app/node_modules
+    networks:
+      - nutribot-network
+
+  # Frontend em modo development
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile.dev
+    container_name: nutribot-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3333/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - nutribot-network
+
+networks:
+  nutribot-network:
+    driver: bridge
+    name: nutribot-network-dev
+
+volumes:
+  backend-data:
+    name: nutribot-backend-data-dev
+  backend-uploads:
+    name: nutribot-backend-uploads-dev

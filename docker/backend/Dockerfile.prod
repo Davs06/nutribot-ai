@@ -1,0 +1,44 @@
+# Backend Production Dockerfile
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copiar package.json
+COPY package*.json ./
+
+# Instalar dependências de produção
+RUN npm ci --only=production
+
+# Copiar código fonte
+COPY . .
+
+# ============================================
+# Imagem Final
+# ============================================
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Instalar dependências de runtime
+RUN apk add --no-cache python3 make g++
+
+# Copiar package.json e instalar dependências
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copiar código do builder
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/bot ./bot
+
+# Criar diretórios para dados
+RUN mkdir -p /app/data /app/uploads
+
+# Expor porta
+EXPOSE 3333
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3333/health || exit 1
+
+# Iniciar servidor
+CMD ["node", "src/server.js"]

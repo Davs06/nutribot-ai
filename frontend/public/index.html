@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NutriBot AI - Seu Assistente Nutricional</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .container {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        max-width: 600px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+      .logo-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+      }
+      .logo h1 {
+        font-size: 28px;
+        color: #1f2937;
+      }
+      .logo p {
+        color: #6b7280;
+        font-size: 14px;
+      }
+      .status {
+        background: #f3f4f6;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 25px;
+      }
+      .status-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .status-item:last-child {
+        border-bottom: none;
+      }
+      .status-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .success { color: #10b981; }
+      .error { color: #ef4444; }
+      .loading { color: #f59e0b; }
+      .actions {
+        display: grid;
+        gap: 10px;
+      }
+      .btn {
+        padding: 15px 20px;
+        border-radius: 10px;
+        text-decoration: none;
+        text-align: center;
+        font-weight: 600;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+      }
+      .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+      }
+      .btn-secondary:hover {
+        background: #e5e7eb;
+      }
+      .btn-debug {
+        background: #1f2937;
+        color: white;
+      }
+      .btn-debug:hover {
+        background: #374151;
+      }
+      .error-box {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #dc2626;
+        font-size: 14px;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f4f6;
+        border-top-color: #10b981;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        padding: 40px;
+      }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Logo -->
+      <div class="logo">
+        <div class="logo-icon">🏋️</div>
+        <div>
+          <h1>NutriBot AI</h1>
+          <p>Seu assistente nutricional com IA</p>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading" class="loading-container">
+        <div class="spinner"></div>
+        <p style="color: #6b7280; text-align: center;">Carregando aplicação...</p>
+      </div>
+
+      <!-- Main Content (hidden initially) -->
+      <div id="content" class="hidden">
+        <!-- Error Box (if any) -->
+        <div id="error-box" class="error-box hidden"></div>
+
+        <!-- Status -->
+        <div class="status">
+          <div class="status-item">
+            <span class="status-icon" id="frontend-status">⏳</span>
+            <span id="frontend-text">Verificando frontend...</span>
+          </div>
+          <div class="status-item">
+            <span class="status-icon" id="backend-status">⏳</span>
+            <span id="backend-text">Verificando backend...</span>
+          </div>
+          <div class="status-item">
+            <span class="status-icon" id="token-status">⏳</span>
+            <span id="token-text">Verificando autenticação...</span>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <a href="/login" class="btn btn-primary" id="btn-login">Ir para Login</a>
+          <a href="/register" class="btn btn-secondary" id="btn-register">Criar Conta</a>
+          <a href="/debug" class="btn btn-debug">🔍 Página de Debug</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Verificar status ao carregar
+      async function checkStatus() {
+        const loading = document.getElementById('loading');
+        const content = document.getElementById('content');
+        const errorBox = document.getElementById('error-box');
+        const errors = [];
+
+        // Verificar Frontend
+        const frontendStatus = document.getElementById('frontend-status');
+        const frontendText = document.getElementById('frontend-text');
+        try {
+          // Se chegou até aqui, o frontend está OK
+          frontendStatus.textContent = '✅';
+          frontendStatus.className = 'status-icon success';
+          frontendText.textContent = 'Frontend carregado com sucesso';
+        } catch (e) {
+          frontendStatus.textContent = '❌';
+          frontendStatus.className = 'status-icon error';
+          frontendText.textContent = 'Erro no frontend';
+          errors.push('Erro ao carregar frontend');
+        }
+
+        // Verificar Backend
+        const backendStatus = document.getElementById('backend-status');
+        const backendText = document.getElementById('backend-text');
+        const API_URL = 'http://localhost:3333';
+        try {
+          const response = await fetch(`${API_URL}/health`, {
+            mode: 'cors',
+            signal: AbortSignal.timeout(5000)
+          });
+          if (response.ok) {
+            const data = await response.text();
+            backendStatus.textContent = '✅';
+            backendStatus.className = 'status-icon success';
+            backendText.textContent = `Backend conectado (${data.substring(0, 50)}...)`;
+          } else {
+            throw new Error(`Status ${response.status}`);
+          }
+        } catch (e) {
+          backendStatus.textContent = '❌';
+          backendStatus.className = 'status-icon error';
+          backendText.textContent = `Backend indisponível: ${e.message}`;
+          errors.push(`Backend: ${e.message}`);
+        }
+
+        // Verificar Token
+        const tokenStatus = document.getElementById('token-status');
+        const tokenText = document.getElementById('token-text');
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            tokenStatus.textContent = '✅';
+            tokenStatus.className = 'status-icon success';
+            tokenText.textContent = 'Usuário autenticado';
+            
+            // Mostrar botão de dashboard
+            document.getElementById('btn-login').textContent = 'Ir para Dashboard';
+            document.getElementById('btn-login').href = '/dashboard';
+          } else {
+            tokenStatus.textContent = '⚠️';
+            tokenStatus.className = 'status-icon loading';
+            tokenText.textContent = 'Nenhum usuário logado';
+          }
+        } catch (e) {
+          tokenStatus.textContent = '❌';
+          tokenStatus.className = 'status-icon error';
+          tokenText.textContent = 'Erro ao verificar token';
+          errors.push(`Token: ${e.message}`);
+        }
+
+        // Mostrar erros se houver
+        if (errors.length > 0) {
+          errorBox.innerHTML = '<strong>⚠️ Problemas encontrados:</strong><br>' + errors.join('<br>');
+          errorBox.classList.remove('hidden');
+        }
+
+        // Esconder loading e mostrar conteúdo
+        loading.classList.add('hidden');
+        content.classList.remove('hidden');
+      }
+
+      // Executar verificação
+      checkStatus();
+    </script>
+  </body>
+</html>

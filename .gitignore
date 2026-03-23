@@ -1,0 +1,93 @@
+# ============================================
+# Gitignore Geral - NutriBot AI
+# ============================================
+
+# Dependências
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.example
+
+# Banco de dados
+*.db
+*.sqlite
+*.sqlite3
+data.db
+
+# Banco de dados
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads e mídia
+uploads/
+media/
+public/uploads/
+
+# Build e distribuição
+dist/
+build/
+.next/
+out/
+
+# Logs
+logs/
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# IDE e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-*
+
+# Testes e cobertura
+coverage/
+.nyc_output/
+
+# Temporários
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Docker (manter apenas configs)
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# Certificados SSL
+traefik/certs/acme.json
+
+# Arquivos de sistema
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini

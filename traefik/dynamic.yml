@@ -1,0 +1,61 @@
+# Configuração dinâmica do Traefik
+# Middlewares adicionais e roteamento
+
+http:
+  middlewares:
+    # Middleware para CORS
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowOriginList:
+          - "*"
+        accessControlMaxAge: 100
+
+    # Rate limiting para API
+    api-ratelimit:
+      rateLimit:
+        average: 50
+        burst: 20
+
+    # Strip prefix para API
+    strip-api-prefix:
+      stripPrefix:
+        prefixes:
+          - /api
+
+    # Redirect para HTTPS
+    redirect-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  # Roteamento para serviços internos
+  routers:
+    # Dashboard do Traefik (apenas rede interna)
+    traefik-dashboard:
+      rule: "Host(`traefik.nutribot.local`)"
+      service: api@internal
+      entryPoints:
+        - api
+      middlewares:
+        - auth-dashboard
+
+  # Serviços
+  services:
+    # Serviço interno do Traefik
+    api@internal: null
+
+  # Middlewares de autenticação para dashboard
+  middlewares:
+    auth-dashboard:
+      basicAuth:
+        users:
+          # admin:admin (gerar com htpasswd)
+          - "admin:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"

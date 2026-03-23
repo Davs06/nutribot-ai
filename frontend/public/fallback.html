@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriBot AI - Carregando...</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .logo {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        h1 { color: #1f2937; margin-bottom: 10px; }
+        p { color: #6b7280; margin-bottom: 30px; }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f4f6;
+            border-top-color: #10b981;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .links {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .link {
+            padding: 10px 20px;
+            background: #f3f4f6;
+            color: #374151;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .link:hover { background: #e5e7eb; }
+        .link.primary { background: #10b981; color: white; }
+        .link.primary:hover { background: #059669; }
+        .status {
+            margin-top: 30px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            font-size: 13px;
+            text-align: left;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+        }
+        .error { color: #dc2626; }
+        .success { color: #10b981; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🏋️</div>
+        <h1>NutriBot AI</h1>
+        <p>Seu assistente nutricional com IA</p>
+        
+        <div class="spinner"></div>
+        <p>Carregando aplicação React...</p>
+        
+        <div class="links">
+            <a href="/login" class="link primary">Login</a>
+            <a href="/register" class="link">Criar Conta</a>
+            <a href="/debug" class="link">🔍 Debug</a>
+            <a href="http://localhost:3333/health" target="_blank" class="link">Health Check</a>
+        </div>
+        
+        <div class="status" id="status">
+            <div class="status-item">
+                <span>⏳</span>
+                <span id="status-text">Verificando serviços...</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function checkServices() {
+            const statusText = document.getElementById('status-text');
+            const statusDiv = document.getElementById('status');
+            let messages = [];
+            
+            // Check backend
+            try {
+                const res = await fetch('http://localhost:3333/health', { 
+                    signal: AbortSignal.timeout(3000) 
+                });
+                if (res.ok) {
+                    messages.push('<div class="status-item"><span class="success">✅</span><span>Backend online</span></div>');
+                } else {
+                    messages.push('<div class="status-item"><span class="error">❌</span><span>Backend com erro</span></div>');
+                }
+            } catch (e) {
+                messages.push('<div class="status-item"><span class="error">❌</span><span>Backend offline</span></div>');
+            }
+            
+            statusDiv.innerHTML = messages.join('');
+            
+            // Auto redirect se React carregar
+            setTimeout(() => {
+                if (window.location.pathname === '/') {
+                    window.location.href = '/login';
+                }
+            }, 2000);
+        }
+        
+        checkServices();
+    </script>
+</body>
+</html>

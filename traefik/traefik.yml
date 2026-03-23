@@ -1,0 +1,72 @@
+# Configuração estática do Traefik
+api:
+  dashboard: true
+  insecure: false
+
+# Logs
+log:
+  level: INFO
+  format: common
+
+# Access logs
+accessLog:
+  format: common
+  bufferingSize: 100
+
+# Providers
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: nutribot-network
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# Entry points
+entryPoints:
+  # HTTP
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  # HTTPS
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+
+  # API interna (sem redirecionamento HTTPS para rede interna)
+  api:
+    address: ":8080"
+
+# Certificates Resolvers
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@nutribot.local
+      storage: /etc/traefik/certs/acme.json
+      httpChallenge:
+        entryPoint: web
+
+# Middlewares globais
+http:
+  middlewares:
+    security-headers:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        sslRedirect: true
+    compress:
+      compress: {}
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50

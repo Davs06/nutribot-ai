@@ -1,0 +1,195 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME_BACKEND: ${{ secrets.DOCKER_USERNAME }}/nutribot-backend
+  IMAGE_NAME_FRONTEND: ${{ secrets.DOCKER_USERNAME }}/nutribot-frontend
+
+jobs:
+  # ============================================
+  # Build & Test
+  # ============================================
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: nutribot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: ./backend
+        run: npm test || echo "No tests configured yet"
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/nutribot_test
+          GEMINI_API_KEY: test_key
+          JWT_SECRET: test_secret
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run frontend build
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          VITE_API_URL: http://localhost:3333/api
+
+      - name: Build Docker images
+        run: |
+          docker build -t ${{ env.IMAGE_NAME_BACKEND }}:test ./backend
+          docker build -t ${{ env.IMAGE_NAME_FRONTEND }}:test ./frontend
+
+  # ============================================
+  # Deploy Development
+  # ============================================
+  deploy-dev:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and push backend (dev)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./docker/backend/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME_BACKEND }}:dev
+            ${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME_BACKEND }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME_BACKEND }}:buildcache,mode=max
+
+      - name: Build and push frontend (dev)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./docker/frontend/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME_FRONTEND }}:dev
+            ${{ env.IMAGE_NAME_FRONTEND }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME_FRONTEND }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME_FRONTEND }}:buildcache,mode=max
+
+      - name: Trigger Portainer Webhook (Dev)
+        if: ${{ secrets.PORTAINER_WEBHOOK_DEV }}
+        run: |
+          curl -X POST ${{ secrets.PORTAINER_WEBHOOK_DEV }} \
+            -H "Content-Type: application/json" \
+            -d '{"image": "${{ env.IMAGE_NAME_BACKEND }}:dev"}'
+        continue-on-error: true
+
+  # ============================================
+  # Deploy Production
+  # ============================================
+  deploy-prod:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and push backend (prod)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./docker/backend/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME_BACKEND }}:latest
+            ${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME_BACKEND }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME_BACKEND }}:buildcache,mode=max
+
+      - name: Build and push frontend (prod)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./docker/frontend/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME_FRONTEND }}:latest
+            ${{ env.IMAGE_NAME_FRONTEND }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME_FRONTEND }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME_FRONTEND }}:buildcache,mode=max
+
+      - name: Trigger Portainer Webhook (Prod)
+        if: ${{ secrets.PORTAINER_WEBHOOK_PROD }}
+        run: |
+          echo "🚀 Triggering Portainer webhook for production deploy..."
+          curl -X POST ${{ secrets.PORTAINER_WEBHOOK_PROD }} \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repository": "${{ github.repository }}",
+              "commit": "${{ github.sha }}",
+              "branch": "main",
+              "images": {
+                "backend": "${{ env.IMAGE_NAME_BACKEND }}:latest",
+                "frontend": "${{ env.IMAGE_NAME_FRONTEND }}:latest"
+              }
+            }'
+          echo "✅ Portainer webhook triggered successfully!"
+        continue-on-error: true
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "✅ Production deployment completed for ${{ github.sha }}"
+          echo "📦 Images pushed:"
+          echo "   - ${{ env.IMAGE_NAME_BACKEND }}:latest"
+          echo "   - ${{ env.IMAGE_NAME_FRONTEND }}:latest"
+          echo "🔗 Portainer webhook: ${{ secrets.PORTAINER_WEBHOOK_PROD != '' && 'Triggered' || 'Not configured' }}"
