@@ -71,8 +71,8 @@ jobs:
 
       - name: Build Docker images
         run: |
-          docker build -t ${{ env.IMAGE_NAME_BACKEND }}:test ./backend
-          docker build -t ${{ env.IMAGE_NAME_FRONTEND }}:test ./frontend
+          docker build -t ${{ env.IMAGE_NAME_BACKEND }}:test -f ./docker/backend/Dockerfile.prod .
+          docker build -t ${{ env.IMAGE_NAME_FRONTEND }}:test -f ./docker/frontend/Dockerfile.prod .
 
   # ============================================
   # Deploy Development
@@ -95,7 +95,7 @@ jobs:
       - name: Build and push backend (dev)
         uses: docker/build-push-action@v5
         with:
-          context: . # Mude de ./backend para .
+          context: . # AJUSTADO: Contexto na raiz para encontrar a pasta docker/
           file: ./docker/backend/Dockerfile.prod
           push: true
           tags: |
@@ -107,7 +107,7 @@ jobs:
       - name: Build and push frontend (dev)
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: . # AJUSTADO: Contexto na raiz
           file: ./docker/frontend/Dockerfile.prod
           push: true
           tags: |
@@ -146,7 +146,7 @@ jobs:
       - name: Build and push backend (prod)
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: . # AJUSTADO: Contexto na raiz
           file: ./docker/backend/Dockerfile.prod
           push: true
           tags: |
@@ -158,7 +158,7 @@ jobs:
       - name: Build and push frontend (prod)
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: . # AJUSTADO: Contexto na raiz
           file: ./docker/frontend/Dockerfile.prod
           push: true
           tags: |
@@ -170,26 +170,7 @@ jobs:
       - name: Trigger Portainer Webhook (Prod)
         if: ${{ secrets.PORTAINER_WEBHOOK_PROD }}
         run: |
-          echo "🚀 Triggering Portainer webhook for production deploy..."
           curl -X POST ${{ secrets.PORTAINER_WEBHOOK_PROD }} \
             -H "Content-Type: application/json" \
-            -d '{
-              "repository": "${{ github.repository }}",
-              "commit": "${{ github.sha }}",
-              "branch": "main",
-              "images": {
-                "backend": "${{ env.IMAGE_NAME_BACKEND }}:latest",
-                "frontend": "${{ env.IMAGE_NAME_FRONTEND }}:latest"
-              }
-            }'
-          echo "✅ Portainer webhook triggered successfully!"
+            -d '{"image": "${{ env.IMAGE_NAME_BACKEND }}:latest"}'
         continue-on-error: true
-
-      - name: Notify deployment
-        if: always()
-        run: |
-          echo "✅ Production deployment completed for ${{ github.sha }}"
-          echo "📦 Images pushed:"
-          echo "   - ${{ env.IMAGE_NAME_BACKEND }}:latest"
-          echo "   - ${{ env.IMAGE_NAME_FRONTEND }}:latest"
-          echo "🔗 Portainer webhook: ${{ secrets.PORTAINER_WEBHOOK_PROD != '' && 'Triggered' || 'Not configured' }}"
