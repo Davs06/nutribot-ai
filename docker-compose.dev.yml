@@ -7,28 +7,28 @@ services:
       - nutri_internal
     environment:
       - NODE_ENV=development
-    deploy:
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.nutribot-back-dev.rule=Host(`api-dev.nutribot.techrocket.site`)"
-        - "traefik.http.routers.nutribot-back-dev.entrypoints=websecure"
-        - "traefik.http.routers.nutribot-back-dev.tls=true"
-        - "traefik.http.routers.nutribot-back-dev.tls.certresolver=lets-encrypt"
-        - "traefik.http.services.nutribot-back-dev.loadbalancer.server.port=3333"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nutribot-back-dev.rule=Host(`api-dev.nutribot.techrocket.site`)"
+      - "traefik.http.routers.nutribot-back-dev.entrypoints=websecure"
+      - "traefik.http.routers.nutribot-back-dev.tls=true"
+      - "traefik.http.routers.nutribot-back-dev.tls.certresolver=lets-encrypt"
+      - "traefik.http.services.nutribot-back-dev.loadbalancer.server.port=3333"
 
   frontend-dev:
     image: ${DOCKER_USERNAME}/nutribot-frontend:dev
     networks:
       - web
       - nutri_internal
-    deploy:
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.nutribot-front-dev.rule=Host(`dev.nutribot.techrocket.site`)"
-        - "traefik.http.routers.nutribot-front-dev.entrypoints=websecure"
-        - "traefik.http.routers.nutribot-front-dev.tls=true"
-        - "traefik.http.routers.nutribot-front-dev.tls.certresolver=lets-encrypt"
-        - "traefik.http.services.nutribot-front-dev.loadbalancer.server.port=80"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nutribot-front-dev.rule=Host(`dev.nutribot.techrocket.site`)"
+      - "traefik.http.routers.nutribot-front-dev.entrypoints=websecure"
+      - "traefik.http.routers.nutribot-front-dev.tls=true"
+      - "traefik.http.routers.nutribot-front-dev.tls.certresolver=lets-encrypt"
+      - "traefik.http.services.nutribot-front-dev.loadbalancer.server.port=80"
 
 networks:
   web:

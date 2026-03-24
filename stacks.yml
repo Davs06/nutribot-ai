@@ -1,0 +1,123 @@
+version: '3.8'
+
+# ============================================
+# NutriBot AI - Stack para Portainer
+# ============================================
+# Use este arquivo no Portainer:
+# Stacks → Add stack → Custom template → Upload este arquivo
+# ============================================
+
+services:
+  # ============================================
+  # PostgreSQL - Banco de Dados
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: nutribot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-nutribot}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ChangeMe123!}
+      POSTGRES_DB: ${DB_NAME:-nutribot}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - nutribot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nutribot} -d ${DB_NAME:-nutribot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Backend - API Node.js
+  # ============================================
+  backend:
+    image: ${DOCKER_USERNAME:-youruser}/nutribot-backend:${TAG:-latest}
+    container_name: nutribot-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3333
+      - DATABASE_URL=postgresql://${DB_USER:-nutribot}:${DB_PASSWORD:-ChangeMe123!}@postgres:5432/${DB_NAME:-nutribot}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - USDA_API_KEY=${USDA_API_KEY:-}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=7d
+      - FRONTEND_URL=${FRONTEND_URL:-https://nutribot.local}
+    volumes:
+      - backend-uploads:/app/uploads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN:-nutribot.local}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend.service=backend"
+      - "traefik.http.services.backend.loadbalancer.server.port=3333"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.services.backend.loadbalancer.healthcheck.timeout=10s"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - nutribot-network
+
+  # ============================================
+  # Frontend - React (Nginx)
+  # ============================================
+  frontend:
+    image: ${DOCKER_USERNAME:-youruser}/nutribot-frontend:${TAG:-latest}
+    container_name: nutribot-frontend
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-nutribot.local}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.middlewares=compress,security-headers"
+    depends_on:
+      - backend
+    networks:
+      - nutribot-network
+
+  # ============================================
+  # Traefik - Proxy Reverso
+  # ============================================
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+      - ./traefik/certs:/etc/traefik/certs
+    networks:
+      - nutribot-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN:-nutribot.local}`)"
+      - "traefik.http.routers.traefik.entrypoints=api"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=auth-dashboard"
+
+networks:
+  nutribot-network:
+    driver: bridge
+    name: nutribot-network
+
+volumes:
+  postgres-data:
+    name: nutribot-postgres-data
+  backend-uploads:
+    name: nutribot-backend-uploads
