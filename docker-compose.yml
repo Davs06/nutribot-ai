@@ -2,33 +2,6 @@ version: '3.8'
 
 services:
   # ============================================
-  # TRAEFIK - Proxy Reverso
-  # ============================================
-  traefik:
-    image: traefik:v2.10
-    container_name: traefik
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    ports:
-      - 80:80
-      - 443:443
-      - 8080:8080  # Dashboard (apenas rede interna)
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
-      - ./traefik/certs:/etc/traefik/certs
-    networks:
-      - nutribot-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.nutribot.local`)"
-      - "traefik.http.routers.traefik.entrypoints=api"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.middlewares=auth-dashboard"
-
-  # ============================================
   # BACKEND - API Node.js
   # ============================================
   backend:
@@ -91,6 +64,7 @@ services:
       - backend
     networks:
       - nutribot-network
+      - web
 
 networks:
   nutribot-network:
