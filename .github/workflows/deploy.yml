@@ -21,7 +21,7 @@ jobs:
   # ============================================
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15-alpine
@@ -44,8 +44,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install backend dependencies
         working-directory: ./backend
@@ -81,7 +81,7 @@ jobs:
     needs: build-and-test
     if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,7 +95,7 @@ jobs:
       - name: Build and push backend (dev)
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: . # Mude de ./backend para .
           file: ./docker/backend/Dockerfile.prod
           push: true
           tags: |
@@ -132,7 +132,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
